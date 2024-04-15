@@ -1,0 +1,171 @@
+/*
+ * SPDX-FileCopyrightText: 2016 The CyanogenMod project
+ * SPDX-FileCopyrightText: 2017-2023 The LineageOS project
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package com.android.settings.utils;
+
+import android.app.Activity;
+import android.bluetooth.BluetoothManager;
+import android.content.Context;
+import android.content.pm.ActivityInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.res.Configuration;
+import android.graphics.Point;
+import android.graphics.Rect;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraManager;
+import android.nfc.NfcAdapter;
+import android.os.Build;
+import android.os.SystemProperties;
+import android.telephony.TelephonyManager;
+import android.telephony.SubscriptionManager;
+import android.text.TextUtils;
+import android.view.Display;
+import android.view.DisplayCutout;
+import android.view.KeyCharacterMap;
+import android.view.KeyEvent;
+import android.view.Surface;
+
+import androidx.annotation.NonNull;
+
+public class DeviceUtils {
+
+    /* returns whether the device has a centered display cutout or not. */
+    public static boolean hasCenteredCutout(Context context) {
+        Display display = context.getDisplay();
+        DisplayCutout cutout = display.getCutout();
+        if (cutout != null) {
+            Point realSize = new Point();
+            display.getRealSize(realSize);
+
+            switch (display.getRotation()) {
+                case Surface.ROTATION_0: {
+                    Rect rect = cutout.getBoundingRectTop();
+                    return !(rect.left <= 0 || rect.right >= realSize.x);
+                }
+                case Surface.ROTATION_90: {
+                    Rect rect = cutout.getBoundingRectLeft();
+                    return !(rect.top <= 0 || rect.bottom >= realSize.y);
+                }
+                case Surface.ROTATION_180: {
+                    Rect rect = cutout.getBoundingRectBottom();
+                    return !(rect.left <= 0 || rect.right >= realSize.x);
+                }
+                case Surface.ROTATION_270: {
+                    Rect rect = cutout.getBoundingRectRight();
+                    return !(rect.top <= 0 || rect.bottom >= realSize.y);
+                }
+            }
+        }
+        return false;
+    }
+
+    /* returns whether the device has power key or not. */
+    public static boolean hasPowerKey() {
+        return KeyCharacterMap.deviceHasKey(KeyEvent.KEYCODE_POWER);
+    }
+
+    public static boolean isPackageInstalled(Context context, String pkg, boolean ignoreState) {
+        if (pkg != null) {
+            try {
+                PackageInfo pi = context.getPackageManager().getPackageInfo(pkg,
+                        PackageManager.PackageInfoFlags.of(0));
+                if (!pi.applicationInfo.enabled && !ignoreState) {
+                    return false;
+                }
+            } catch (PackageManager.NameNotFoundException e) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Locks the activity orientation to the current device orientation
+     */
+    public static void lockCurrentOrientation(Activity activity) {
+        int currentRotation = activity.getDisplay().getRotation();
+        int orientation = activity.getResources().getConfiguration().orientation;
+        int frozenRotation = 0;
+        switch (currentRotation) {
+            case Surface.ROTATION_0:
+                frozenRotation = orientation == Configuration.ORIENTATION_LANDSCAPE
+                        ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                        : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+                break;
+            case Surface.ROTATION_90:
+                frozenRotation = orientation == Configuration.ORIENTATION_PORTRAIT
+                        ? ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+                        : ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+                break;
+            case Surface.ROTATION_180:
+                frozenRotation = orientation == Configuration.ORIENTATION_LANDSCAPE
+                        ? ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+                        : ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT;
+                break;
+            case Surface.ROTATION_270:
+                frozenRotation = orientation == Configuration.ORIENTATION_PORTRAIT
+                        ? ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        : ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE;
+                break;
+        }
+        activity.setRequestedOrientation(frozenRotation);
+    }
+
+    public static boolean isDozeAvailable(Context context) {
+        String name = Build.IS_DEBUGGABLE ? SystemProperties.get("debug.doze.component") : null;
+        if (TextUtils.isEmpty(name)) {
+            name = context.getResources().getString(
+                    com.android.internal.R.string.config_dozeComponent);
+        }
+        return !TextUtils.isEmpty(name);
+    }
+
+    public static boolean deviceSupportsMobileData(Context ctx) {
+        TelephonyManager telephonyManager = ctx.getSystemService(TelephonyManager.class);
+        return telephonyManager.isDataCapable();
+    }
+
+    public static boolean deviceSupportsBluetooth(Context ctx) {
+        BluetoothManager bluetoothManager = (BluetoothManager)
+                ctx.getSystemService(Context.BLUETOOTH_SERVICE);
+        return (bluetoothManager.getAdapter() != null);
+    }
+
+    public static boolean deviceSupportsNfc(Context ctx) {
+        return NfcAdapter.getDefaultAdapter(ctx) != null;
+    }
+
+    public static boolean deviceSupportsFlashLight(@NonNull Context context) {
+        CameraManager cameraManager = context.getSystemService(CameraManager.class);
+        try {
+            String[] ids = cameraManager.getCameraIdList();
+            for (String id : ids) {
+                CameraCharacteristics c = cameraManager.getCameraCharacteristics(id);
+                Boolean flashAvailable = c.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
+                Integer lensFacing = c.get(CameraCharacteristics.LENS_FACING);
+                if (flashAvailable != null
+                        && flashAvailable
+                        && lensFacing != null
+                        && lensFacing == CameraCharacteristics.LENS_FACING_BACK) {
+                    return true;
+                }
+            }
+        } catch (CameraAccessException | AssertionError e) {
+            // Ignore
+        }
+        return false;
+    }
+
+    public static boolean isMobileDataEnabled(Context context) {
+        TelephonyManager telephonyManager = context.getSystemService(TelephonyManager.class);
+        int subId = SubscriptionManager.getDefaultDataSubscriptionId();
+        return telephonyManager.createForSubscriptionId(subId).isDataEnabled();
+    }
+
+
+}
