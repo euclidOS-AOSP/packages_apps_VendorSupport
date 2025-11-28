@@ -31,6 +31,8 @@ import android.view.Surface;
 
 import androidx.annotation.NonNull;
 
+import java.util.Arrays;
+
 public class DeviceUtils {
 
     /* returns whether the device has a centered display cutout or not. */
@@ -167,5 +169,8 @@ public class DeviceUtils {
         return telephonyManager.createForSubscriptionId(subId).isDataEnabled();
     }
 
-
+    public static boolean isCurrentlySupportedPixel() {
+       boolean isPixelDevice = SystemProperties.get("ro.product.model").matches("Pixel [3-9][a-zA-Z ]*");
+            return isPixelDevice;
+    }
 }
