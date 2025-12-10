@@ -101,7 +101,7 @@ public class ColorPickerPreference extends Preference implements
     @Override
     protected void onSetInitialValue(boolean restorePersistedValue, Object defaultValue) {
         // when using PreferenceDataStore, restorePersistedValue is always true (see Preference class for reference)
-        // so we load the persistent value with getPersistedInt if available in the data store, 
+        // so we load the persistent value with getPersistedInt if available in the data store,
         // and use defaultValue as fallback (onGetDefaultValue has been already called and it loaded the android:defaultValue attr from our xml).
         if (defaultValue == null) {
             // if we forgot to add android:defaultValue, default to black color
@@ -260,6 +260,26 @@ public class ColorPickerPreference extends Preference implements
      */
     public void setAlphaSliderEnabled(boolean enable) {
         mAlphaSliderEnabled = enable;
+    }
+
+    public static String convertToRGB(int color) {
+        String red = Integer.toHexString(Color.red(color));
+        String green = Integer.toHexString(Color.green(color));
+        String blue = Integer.toHexString(Color.blue(color));
+
+        if (red.length() == 1) {
+            red = "0" + red;
+        }
+
+        if (green.length() == 1) {
+            green = "0" + green;
+        }
+
+        if (blue.length() == 1) {
+            blue = "0" + blue;
+        }
+
+        return "#" + red + green + blue;
     }
 
     /**
